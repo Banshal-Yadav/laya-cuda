@@ -1,0 +1,831 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Laya Snake AI - Real-time RTX CUDA Graph Live Stream</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700;800&family=Outfit:wght@300;400;600;700;900&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg-dark: #07090e;
+      --card-bg: rgba(16, 20, 31, 0.75);
+      --card-border: rgba(255, 255, 255, 0.08);
+      --accent-cyan: #00f2fe;
+      --accent-blue: #4facfe;
+      --accent-green: #00ff88;
+      --accent-purple: #b92b27;
+      --accent-pink: #f72585;
+      --text-main: #f0f4f8;
+      --text-muted: #8290a6;
+      --font-display: 'Outfit', sans-serif;
+      --font-mono: 'JetBrains Mono', monospace;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      background-color: var(--bg-dark);
+      background-image: 
+        radial-gradient(circle at 15% 15%, rgba(79, 172, 254, 0.08) 0%, transparent 40%),
+        radial-gradient(circle at 85% 85%, rgba(247, 37, 133, 0.06) 0%, transparent 40%);
+      color: var(--text-main);
+      font-family: var(--font-display);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 24px;
+      overflow-x: hidden;
+    }
+
+    header {
+      width: 100%;
+      max-width: 1280px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 24px;
+      padding-bottom: 16px;
+      border-bottom: 1px solid var(--card-border);
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .brand-logo {
+      width: 42px;
+      height: 42px;
+      background: linear-gradient(135deg, var(--accent-cyan), var(--accent-blue));
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 900;
+      font-size: 20px;
+      color: #000;
+      box-shadow: 0 0 20px rgba(0, 242, 254, 0.4);
+    }
+
+    .brand-text h1 {
+      font-size: 22px;
+      font-weight: 700;
+      letter-spacing: -0.5px;
+    }
+
+    .brand-text span {
+      font-size: 13px;
+      color: var(--text-muted);
+      font-family: var(--font-mono);
+    }
+
+    .badge-cuda {
+      background: rgba(0, 255, 136, 0.12);
+      border: 1px solid rgba(0, 255, 136, 0.3);
+      color: var(--accent-green);
+      font-size: 12px;
+      font-weight: 600;
+      padding: 6px 14px;
+      border-radius: 20px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-family: var(--font-mono);
+    }
+
+    .badge-dot {
+      width: 8px;
+      height: 8px;
+      background: var(--accent-green);
+      border-radius: 50%;
+      box-shadow: 0 0 8px var(--accent-green);
+      animation: pulse 1.5s infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.4; transform: scale(0.85); }
+    }
+
+    main {
+      width: 100%;
+      max-width: 1280px;
+      display: grid;
+      grid-template-columns: 540px 1fr;
+      gap: 24px;
+    }
+
+    @media (max-width: 1080px) {
+      main {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    /* Left: Game Panel */
+    .game-card {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      backdrop-filter: blur(16px);
+      border-radius: 20px;
+      padding: 24px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      box-shadow: 0 16px 40px rgba(0, 0, 0, 0.5);
+    }
+
+    .canvas-container {
+      position: relative;
+      border-radius: 14px;
+      overflow: hidden;
+      border: 2px solid rgba(255, 255, 255, 0.1);
+      box-shadow: 0 0 30px rgba(0, 0, 0, 0.8), inset 0 0 20px rgba(0, 0, 0, 0.5);
+      margin-bottom: 20px;
+    }
+
+    #gameCanvas {
+      display: block;
+      background: #0d111a;
+    }
+
+    .game-stats {
+      width: 100%;
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 12px;
+      margin-bottom: 20px;
+    }
+
+    .stat-pill {
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid var(--card-border);
+      border-radius: 12px;
+      padding: 12px 14px;
+      text-align: center;
+    }
+
+    .stat-pill label {
+      display: block;
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: var(--text-muted);
+      margin-bottom: 4px;
+      font-weight: 600;
+    }
+
+    .stat-pill value {
+      display: block;
+      font-size: 24px;
+      font-weight: 800;
+      font-family: var(--font-mono);
+    }
+
+    .val-cyan { color: var(--accent-cyan); }
+    .val-green { color: var(--accent-green); }
+    .val-pink { color: var(--accent-pink); }
+
+    /* Controls */
+    .controls {
+      width: 100%;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+
+    .slider-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background: rgba(255, 255, 255, 0.03);
+      padding: 10px 16px;
+      border-radius: 12px;
+      border: 1px solid var(--card-border);
+    }
+
+    .slider-row span {
+      font-size: 13px;
+      font-weight: 600;
+    }
+
+    .slider-container {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      width: 60%;
+    }
+
+    input[type="range"] {
+      flex: 1;
+      accent-color: var(--accent-cyan);
+      height: 6px;
+      border-radius: 3px;
+      cursor: pointer;
+    }
+
+    .btn-row {
+      display: flex;
+      gap: 10px;
+    }
+
+    button {
+      flex: 1;
+      padding: 12px;
+      border-radius: 10px;
+      border: none;
+      font-family: var(--font-display);
+      font-weight: 600;
+      font-size: 14px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    .btn-primary {
+      background: linear-gradient(135deg, var(--accent-cyan), var(--accent-blue));
+      color: #000;
+      box-shadow: 0 4px 15px rgba(0, 242, 254, 0.3);
+    }
+
+    .btn-primary:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 20px rgba(0, 242, 254, 0.5);
+    }
+
+    .btn-secondary {
+      background: rgba(255, 255, 255, 0.08);
+      color: var(--text-main);
+      border: 1px solid var(--card-border);
+    }
+
+    .btn-secondary:hover {
+      background: rgba(255, 255, 255, 0.14);
+    }
+
+    /* Right: Dashboard / Telemetry */
+    .telemetry-card {
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+
+    .panel {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      backdrop-filter: blur(16px);
+      border-radius: 20px;
+      padding: 22px;
+      box-shadow: 0 16px 40px rgba(0, 0, 0, 0.4);
+    }
+
+    .panel h2 {
+      font-size: 16px;
+      font-weight: 700;
+      letter-spacing: -0.3px;
+      margin-bottom: 16px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      color: #c9d6e4;
+    }
+
+    .panel-sub {
+      font-size: 12px;
+      font-family: var(--font-mono);
+      color: var(--accent-green);
+      font-weight: normal;
+    }
+
+    /* Metrics Grid */
+    .metrics-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 12px;
+      margin-bottom: 16px;
+    }
+
+    .metric-box {
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid var(--card-border);
+      border-radius: 12px;
+      padding: 14px;
+    }
+
+    .metric-box label {
+      display: block;
+      font-size: 11px;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      font-weight: 600;
+      margin-bottom: 4px;
+    }
+
+    .metric-box .number {
+      font-size: 26px;
+      font-weight: 800;
+      font-family: var(--font-mono);
+    }
+
+    .metric-box .unit {
+      font-size: 12px;
+      font-weight: normal;
+      color: var(--text-muted);
+      margin-left: 4px;
+    }
+
+    /* Sparkline */
+    .sparkline-box {
+      background: rgba(0, 0, 0, 0.3);
+      border-radius: 10px;
+      border: 1px solid rgba(255, 255, 255, 0.05);
+      padding: 10px;
+      height: 70px;
+      position: relative;
+    }
+
+    #sparkCanvas {
+      width: 100%;
+      height: 100%;
+      display: block;
+    }
+
+    /* Probabilities bars */
+    .prob-row {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .prob-item {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .prob-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 12px;
+      font-family: var(--font-mono);
+    }
+
+    .prob-dir {
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .prob-bar-track {
+      width: 100%;
+      height: 8px;
+      background: rgba(255, 255, 255, 0.06);
+      border-radius: 4px;
+      overflow: hidden;
+      position: relative;
+    }
+
+    .prob-bar-fill {
+      height: 100%;
+      width: 0%;
+      border-radius: 4px;
+      background: var(--accent-cyan);
+      transition: width 0.08s ease;
+    }
+
+    .selected-action {
+      color: var(--accent-green) !important;
+    }
+
+    .selected-action .prob-bar-fill {
+      background: var(--accent-green);
+      box-shadow: 0 0 10px var(--accent-green);
+    }
+
+    /* Prompt terminal */
+    .terminal-box {
+      background: #050608;
+      border: 1px solid rgba(255, 255, 255, 0.07);
+      border-radius: 10px;
+      padding: 12px;
+      font-family: var(--font-mono);
+      font-size: 11px;
+      line-height: 1.5;
+      color: #94a3b8;
+      max-height: 110px;
+      overflow-y: auto;
+      white-space: pre-wrap;
+      word-break: break-all;
+    }
+
+    .terminal-box span.highlight {
+      color: var(--accent-cyan);
+      font-weight: 600;
+    }
+  </style>
+</head>
+<body>
+
+  <header>
+    <div class="brand">
+      <div class="brand-logo">L</div>
+      <div class="brand-text">
+        <h1>Laya Decision Model - Snake Live AI</h1>
+        <span>ModernBERT 22-Layer Backbone • CUDA Graph Replay</span>
+      </div>
+    </div>
+    <div class="badge-cuda">
+      <div class="badge-dot"></div>
+      RTX 4050 ACCELERATED
+    </div>
+  </header>
+
+  <main>
+    <!-- Left: Game Screen -->
+    <div class="game-card">
+      <div class="canvas-container">
+        <canvas id="gameCanvas" width="480" height="480"></canvas>
+      </div>
+
+      <div class="game-stats">
+        <div class="stat-pill">
+          <label>Score</label>
+          <value id="valScore" class="val-cyan">0</value>
+        </div>
+        <div class="stat-pill">
+          <label>Steps</label>
+          <value id="valSteps" class="val-green">0</value>
+        </div>
+        <div class="stat-pill">
+          <label>High Score</label>
+          <value id="valHigh" class="val-pink">0</value>
+        </div>
+      </div>
+
+      <div class="controls">
+        <div class="slider-row">
+          <span>Game Speed (FPS): <b id="lblFps">30</b></span>
+          <div class="slider-container">
+            <input type="range" id="rngSpeed" min="5" max="100" value="30">
+          </div>
+        </div>
+
+        <div class="btn-row">
+          <button id="btnPause" class="btn-primary">Pause AI</button>
+          <button id="btnReset" class="btn-secondary">Reset Game</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Right: Telemetry & Probabilities -->
+    <div class="telemetry-card">
+      
+      <!-- GPU Metrics -->
+      <div class="panel">
+        <h2>
+          AI Inference Telemetry
+          <span class="panel-sub">CUDA GRAPH ZERO-DISPATCH</span>
+        </h2>
+        
+        <div class="metrics-grid">
+          <div class="metric-box">
+            <label>Decision Latency</label>
+            <div>
+              <span id="valLatency" class="number val-cyan">0.0</span>
+              <span class="unit">ms</span>
+            </div>
+          </div>
+          <div class="metric-box">
+            <label>Max GPU Throughput</label>
+            <div>
+              <span id="valFps" class="number val-green">0</span>
+              <span class="unit">decisions/s</span>
+            </div>
+          </div>
+        </div>
+
+        <label style="font-size: 11px; color: var(--text-muted); text-transform: uppercase; font-weight: 600; display: block; margin-bottom: 6px;">
+          Latency History (Real-time GPU ms)
+        </label>
+        <div class="sparkline-box">
+          <canvas id="sparkCanvas"></canvas>
+        </div>
+      </div>
+
+      <!-- Action Probabilities -->
+      <div class="panel">
+        <h2>
+          Laya Decision Distribution
+          <span id="shieldBadge" style="display: none; font-size: 11px; background: rgba(255, 51, 102, 0.2); color: #ff3366; padding: 2px 8px; border-radius: 10px;">SAFETY SHIELDED</span>
+        </h2>
+
+        <div class="prob-row">
+          <div class="prob-item" id="p_UP">
+            <div class="prob-header">
+              <span class="prob-dir">▲ UP</span>
+              <span class="prob-pct">0%</span>
+            </div>
+            <div class="prob-bar-track"><div class="prob-bar-fill"></div></div>
+          </div>
+
+          <div class="prob-item" id="p_DOWN">
+            <div class="prob-header">
+              <span class="prob-dir">▼ DOWN</span>
+              <span class="prob-pct">0%</span>
+            </div>
+            <div class="prob-bar-track"><div class="prob-bar-fill"></div></div>
+          </div>
+
+          <div class="prob-item" id="p_LEFT">
+            <div class="prob-header">
+              <span class="prob-dir">◀ LEFT</span>
+              <span class="prob-pct">0%</span>
+            </div>
+            <div class="prob-bar-track"><div class="prob-bar-fill"></div></div>
+          </div>
+
+          <div class="prob-item" id="p_RIGHT">
+            <div class="prob-header">
+              <span class="prob-dir">▶ RIGHT</span>
+              <span class="prob-pct">0%</span>
+            </div>
+            <div class="prob-bar-track"><div class="prob-bar-fill"></div></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- State Prompt Inspector -->
+      <div class="panel">
+        <h2>Natural Language Context Evaluated by ModernBERT</h2>
+        <div class="terminal-box" id="promptBox">Connecting to Laya WebSocket stream...</div>
+      </div>
+
+    </div>
+  </main>
+
+  <script>
+    // --- Elements ---
+    const canvas = document.getElementById("gameCanvas");
+    const ctx = canvas.getContext("2d");
+    const sparkCanvas = document.getElementById("sparkCanvas");
+    const sCtx = sparkCanvas.getContext("2d");
+
+    const valScore = document.getElementById("valScore");
+    const valSteps = document.getElementById("valSteps");
+    const valHigh = document.getElementById("valHigh");
+    const valLatency = document.getElementById("valLatency");
+    const valFps = document.getElementById("valFps");
+    const rngSpeed = document.getElementById("rngSpeed");
+    const lblFps = document.getElementById("lblFps");
+    const btnPause = document.getElementById("btnPause");
+    const btnReset = document.getElementById("btnReset");
+    const promptBox = document.getElementById("promptBox");
+    const shieldBadge = document.getElementById("shieldBadge");
+
+    let highScore = 0;
+    let isPaused = false;
+    const latencyHistory = [];
+    const maxHistory = 50;
+
+    // Resize sparkline
+    function resizeSpark() {
+      sparkCanvas.width = sparkCanvas.parentElement.clientWidth - 20;
+      sparkCanvas.height = sparkCanvas.parentElement.clientHeight - 20;
+    }
+    window.addEventListener("resize", resizeSpark);
+    resizeSpark();
+
+    // --- WebSocket ---
+    const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
+    const wsUrl = `${protocol}//${window.location.host}/ws`;
+    let ws = new WebSocket(wsUrl);
+
+    ws.onopen = () => {
+      console.log("WebSocket connected.");
+      promptBox.innerText = "Laya AI Model connected and running.";
+    };
+
+    ws.onmessage = (event) => {
+      const data = JSON.parse(event.data);
+
+      if (data.type === "tick") {
+        renderGame(data);
+        updateTelemetry(data);
+      } else if (data.type === "game_over") {
+        flashGameOver(data);
+      }
+    };
+
+    ws.onclose = () => {
+      promptBox.innerText = "Connection lost. Please restart python server.";
+    };
+
+    // --- Controls ---
+    rngSpeed.addEventListener("input", (e) => {
+      const val = parseInt(e.target.value);
+      lblFps.innerText = val;
+      if (ws.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify({ type: "set_speed", fps: val }));
+      }
+    });
+
+    btnPause.addEventListener("click", () => {
+      isPaused = !isPaused;
+      btnPause.innerText = isPaused ? "Resume AI" : "Pause AI";
+      btnPause.classList.toggle("btn-primary", !isPaused);
+      btnPause.classList.toggle("btn-secondary", isPaused);
+      if (ws.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify({ type: isPaused ? "pause" : "resume" }));
+      }
+    });
+
+    btnReset.addEventListener("click", () => {
+      if (ws.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify({ type: "reset" }));
+      }
+    });
+
+    // --- Rendering ---
+    function renderGame(data) {
+      const { snake, food, width, height, score, steps } = data;
+      valScore.innerText = score;
+      valSteps.innerText = steps;
+      if (score > highScore) {
+        highScore = score;
+        valHigh.innerText = highScore;
+      }
+
+      const cellW = canvas.width / width;
+      const cellH = canvas.height / height;
+
+      // Background
+      ctx.fillStyle = "#0a0e17";
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+      // Subtle grid dots
+      ctx.fillStyle = "rgba(255, 255, 255, 0.05)";
+      for (let x = 0; x < width; x++) {
+        for (let y = 0; y < height; y++) {
+          ctx.beginPath();
+          ctx.arc(x * cellW + cellW / 2, y * cellH + cellH / 2, 1.5, 0, Math.PI * 2);
+          ctx.fill();
+        }
+      }
+
+      // Draw Food (Pulsing neon)
+      const fx = food[0] * cellW + cellW / 2;
+      const fy = food[1] * cellH + cellH / 2;
+      const pulse = 1 + 0.15 * Math.sin(Date.now() / 150);
+
+      const fGrad = ctx.createRadialGradient(fx, fy, 2, fx, fy, cellW * 0.8 * pulse);
+      fGrad.addColorStop(0, "#ff007f");
+      fGrad.addColorStop(0.5, "rgba(255, 0, 127, 0.4)");
+      fGrad.addColorStop(1, "transparent");
+
+      ctx.fillStyle = fGrad;
+      ctx.beginPath();
+      ctx.arc(fx, fy, cellW * 0.8 * pulse, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.fillStyle = "#ff007f";
+      ctx.beginPath();
+      ctx.arc(fx, fy, cellW * 0.35, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Draw Snake Body
+      for (let i = snake.length - 1; i >= 1; i--) {
+        const [x, y] = snake[i];
+        const progress = 1 - (i / snake.length);
+        ctx.fillStyle = `hsl(${180 + progress * 50}, 100%, ${40 + progress * 20}%)`;
+        ctx.shadowColor = "rgba(0, 242, 254, 0.3)";
+        ctx.shadowBlur = 8;
+        
+        ctx.beginPath();
+        ctx.roundRect(x * cellW + 2, y * cellH + 2, cellW - 4, cellH - 4, 6);
+        ctx.fill();
+      }
+      ctx.shadowBlur = 0;
+
+      // Snake Head (Bright with Eyes)
+      const [hx, hy] = snake[0];
+      const headX = hx * cellW;
+      const headY = hy * cellH;
+
+      ctx.fillStyle = "#00ff88";
+      ctx.shadowColor = "#00ff88";
+      ctx.shadowBlur = 14;
+      ctx.beginPath();
+      ctx.roundRect(headX + 2, headY + 2, cellW - 4, cellH - 4, 8);
+      ctx.fill();
+      ctx.shadowBlur = 0;
+
+      // Eyes based on action direction
+      ctx.fillStyle = "#07090e";
+      const eyeSize = 3.5;
+      let e1x = headX + cellW * 0.3, e1y = headY + cellH * 0.3;
+      let e2x = headX + cellW * 0.7, e2y = headY + cellH * 0.3;
+
+      if (data.action === "LEFT") {
+        e1x = headX + cellW * 0.25; e1y = headY + cellH * 0.3;
+        e2x = headX + cellW * 0.25; e2y = headY + cellH * 0.7;
+      } else if (data.action === "RIGHT") {
+        e1x = headX + cellW * 0.75; e1y = headY + cellH * 0.3;
+        e2x = headX + cellW * 0.75; e2y = headY + cellH * 0.7;
+      } else if (data.action === "DOWN") {
+        e1x = headX + cellW * 0.3; e1y = headY + cellH * 0.75;
+        e2x = headX + cellW * 0.7; e2y = headY + cellH * 0.75;
+      }
+
+      ctx.beginPath();
+      ctx.arc(e1x, e1y, eyeSize, 0, Math.PI * 2);
+      ctx.arc(e2x, e2y, eyeSize, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    // --- Telemetry Updates ---
+    function updateTelemetry(data) {
+      const { latency_ms, fps, probabilities, action, prompt, is_shielded } = data;
+
+      valLatency.innerText = latency_ms.toFixed(1);
+      valFps.innerText = Math.round(fps);
+      shieldBadge.style.display = is_shielded ? "inline-block" : "none";
+
+      promptBox.innerHTML = prompt.replace(
+        action,
+        `<span class="highlight">${action}</span>`
+      );
+
+      // Update probability bars
+      const dirs = ["UP", "DOWN", "LEFT", "RIGHT"];
+      dirs.forEach((d) => {
+        const item = document.getElementById(`p_${d}`);
+        const p = probabilities[d] || 0;
+        const pct = Math.round(p * 100);
+
+        item.querySelector(".prob-pct").innerText = `${pct}%`;
+        item.querySelector(".prob-bar-fill").style.width = `${pct}%`;
+
+        if (d === action) {
+          item.classList.add("selected-action");
+        } else {
+          item.classList.remove("selected-action");
+        }
+      });
+
+      // Update latency sparkline
+      latencyHistory.push(latency_ms);
+      if (latencyHistory.length > maxHistory) latencyHistory.shift();
+      drawSparkline();
+    }
+
+    function drawSparkline() {
+      sCtx.clearRect(0, 0, sparkCanvas.width, sparkCanvas.height);
+      if (latencyHistory.length < 2) return;
+
+      const w = sparkCanvas.width;
+      const h = sparkCanvas.height;
+      const maxVal = Math.max(16, ...latencyHistory);
+      const minVal = 0;
+
+      sCtx.beginPath();
+      sCtx.strokeStyle = "#00f2fe";
+      sCtx.lineWidth = 2;
+
+      for (let i = 0; i < latencyHistory.length; i++) {
+        const x = (i / (maxHistory - 1)) * w;
+        const y = h - ((latencyHistory[i] - minVal) / (maxVal - minVal)) * (h - 8) - 4;
+        if (i === 0) sCtx.moveTo(x, y);
+        else sCtx.lineTo(x, y);
+      }
+      sCtx.stroke();
+
+      // 16.6ms threshold line (60 FPS cutoff)
+      const targetY = h - ((16.6 - minVal) / (maxVal - minVal)) * (h - 8) - 4;
+      sCtx.beginPath();
+      sCtx.strokeStyle = "rgba(255, 255, 255, 0.15)";
+      sCtx.setLineDash([4, 4]);
+      sCtx.moveTo(0, targetY);
+      sCtx.lineTo(w, targetY);
+      sCtx.stroke();
+      sCtx.setLineDash([]);
+    }
+
+    function flashGameOver(data) {
+      ctx.fillStyle = "rgba(255, 0, 60, 0.4)";
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      ctx.fillStyle = "#ffffff";
+      ctx.font = "bold 32px Outfit";
+      ctx.textAlign = "center";
+      ctx.fillText("COLLISION!", canvas.width / 2, canvas.height / 2);
+    }
+  </script>
+</body>
+</html>

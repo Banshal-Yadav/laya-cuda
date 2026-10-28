@@ -1,0 +1,827 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Laya Cyberpunk Pong - 1v1 Live RTX AI Battle</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;700;800&family=JetBrains+Mono:wght@400;600;700&family=Outfit:wght@400;600;700;900&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #06070b;
+      --panel-bg: rgba(14, 18, 28, 0.75);
+      --border: rgba(255, 255, 255, 0.09);
+      --player-cyan: #00f2fe;
+      --laya-pink: #ff007f;
+      --accent-green: #00ff88;
+      --accent-yellow: #ffb703;
+      --text: #f1f5f9;
+      --muted: #8492a6;
+      --font-arcade: 'Chakra Petch', sans-serif;
+      --font-ui: 'Outfit', sans-serif;
+      --font-mono: 'JetBrains Mono', monospace;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      background-color: var(--bg);
+      background-image: 
+        radial-gradient(circle at 10% 20%, rgba(0, 242, 254, 0.08) 0%, transparent 40%),
+        radial-gradient(circle at 90% 80%, rgba(255, 0, 127, 0.08) 0%, transparent 40%);
+      color: var(--text);
+      font-family: var(--font-ui);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 20px;
+      overflow-x: hidden;
+    }
+
+    header {
+      width: 100%;
+      max-width: 1320px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 20px;
+      padding-bottom: 14px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+
+    .brand-logo {
+      width: 44px;
+      height: 44px;
+      background: linear-gradient(135deg, var(--player-cyan), var(--laya-pink));
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: var(--font-arcade);
+      font-weight: 800;
+      font-size: 22px;
+      color: #fff;
+      box-shadow: 0 0 25px rgba(255, 0, 127, 0.4);
+    }
+
+    .brand-text h1 {
+      font-family: var(--font-arcade);
+      font-size: 24px;
+      font-weight: 700;
+      letter-spacing: 0.5px;
+      text-transform: uppercase;
+    }
+
+    .brand-text span {
+      font-size: 13px;
+      color: var(--muted);
+      font-family: var(--font-mono);
+    }
+
+    .header-badges {
+      display: flex;
+      gap: 12px;
+      align-items: center;
+    }
+
+    .badge {
+      font-family: var(--font-mono);
+      font-size: 12px;
+      font-weight: 600;
+      padding: 6px 14px;
+      border-radius: 20px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .badge-rtx {
+      background: rgba(0, 255, 136, 0.12);
+      border: 1px solid rgba(0, 255, 136, 0.3);
+      color: var(--accent-green);
+    }
+
+    .badge-dot {
+      width: 8px;
+      height: 8px;
+      background: var(--accent-green);
+      border-radius: 50%;
+      box-shadow: 0 0 8px var(--accent-green);
+      animation: pulse 1.5s infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.4; transform: scale(0.85); }
+    }
+
+    main {
+      width: 100%;
+      max-width: 1320px;
+      display: grid;
+      grid-template-columns: 870px 1fr;
+      gap: 24px;
+    }
+
+    @media (max-width: 1200px) {
+      main {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    /* Left: Game Arena */
+    .arena-card {
+      background: var(--panel-bg);
+      border: 1px solid var(--border);
+      backdrop-filter: blur(16px);
+      border-radius: 20px;
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      box-shadow: 0 20px 50px rgba(0, 0, 0, 0.6);
+    }
+
+    .scoreboard {
+      width: 100%;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 10px 40px 16px;
+      font-family: var(--font-arcade);
+    }
+
+    .score-side {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 2px;
+    }
+
+    .score-name {
+      font-size: 13px;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      font-weight: 700;
+    }
+
+    .score-player { color: var(--player-cyan); text-shadow: 0 0 15px rgba(0, 242, 254, 0.5); }
+    .score-ai { color: var(--laya-pink); text-shadow: 0 0 15px rgba(255, 0, 127, 0.5); }
+
+    .score-num {
+      font-size: 48px;
+      font-weight: 800;
+      line-height: 1;
+    }
+
+    .rally-badge {
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid var(--border);
+      padding: 6px 16px;
+      border-radius: 12px;
+      font-family: var(--font-mono);
+      font-size: 13px;
+      text-align: center;
+    }
+
+    .rally-badge b {
+      color: var(--accent-yellow);
+      font-size: 16px;
+    }
+
+    .canvas-wrapper {
+      position: relative;
+      border-radius: 14px;
+      overflow: hidden;
+      border: 2px solid rgba(255, 255, 255, 0.12);
+      box-shadow: 0 0 40px rgba(0, 0, 0, 0.8), inset 0 0 30px rgba(0, 0, 0, 0.6);
+      cursor: crosshair;
+    }
+
+    #pongCanvas {
+      display: block;
+      background: #080a10;
+    }
+
+    .arena-controls {
+      width: 100%;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-top: 16px;
+      padding-top: 14px;
+      border-top: 1px solid var(--border);
+    }
+
+    .control-hint {
+      font-size: 13px;
+      color: var(--muted);
+      font-family: var(--font-mono);
+    }
+
+    .control-hint kbd {
+      background: rgba(255, 255, 255, 0.08);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      padding: 2px 6px;
+      color: #fff;
+    }
+
+    .btn-group {
+      display: flex;
+      gap: 10px;
+    }
+
+    button {
+      padding: 8px 18px;
+      border-radius: 10px;
+      border: 1px solid var(--border);
+      background: rgba(255, 255, 255, 0.06);
+      color: var(--text);
+      font-family: var(--font-ui);
+      font-weight: 600;
+      font-size: 13px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    button:hover {
+      background: rgba(255, 255, 255, 0.12);
+      transform: translateY(-1px);
+    }
+
+    /* Right: AI Brain Telemetry */
+    .ai-card {
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+
+    .panel {
+      background: var(--panel-bg);
+      border: 1px solid var(--border);
+      backdrop-filter: blur(16px);
+      border-radius: 20px;
+      padding: 20px;
+      box-shadow: 0 16px 40px rgba(0, 0, 0, 0.4);
+    }
+
+    .panel h2 {
+      font-family: var(--font-arcade);
+      font-size: 16px;
+      font-weight: 700;
+      letter-spacing: 0.5px;
+      margin-bottom: 14px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      text-transform: uppercase;
+    }
+
+    .tactic-tag {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      background: rgba(255, 0, 127, 0.15);
+      border: 1px solid var(--laya-pink);
+      color: var(--laya-pink);
+      padding: 3px 10px;
+      border-radius: 8px;
+      letter-spacing: 1px;
+    }
+
+    /* AI Stats Grid */
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 12px;
+      margin-bottom: 16px;
+    }
+
+    .stat-box {
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 12px 14px;
+    }
+
+    .stat-box label {
+      display: block;
+      font-size: 11px;
+      color: var(--muted);
+      text-transform: uppercase;
+      font-weight: 600;
+      margin-bottom: 4px;
+    }
+
+    .stat-box .val {
+      font-family: var(--font-mono);
+      font-size: 26px;
+      font-weight: 800;
+    }
+
+    .stat-box .unit {
+      font-size: 12px;
+      color: var(--muted);
+      font-weight: normal;
+    }
+
+    /* Thought bubble */
+    .thought-bubble {
+      background: rgba(255, 0, 127, 0.05);
+      border: 1px solid rgba(255, 0, 127, 0.2);
+      border-radius: 12px;
+      padding: 12px 14px;
+      font-size: 13px;
+      line-height: 1.4;
+      color: #ff99cc;
+      margin-bottom: 16px;
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+    }
+
+    .thought-icon {
+      font-size: 16px;
+    }
+
+    /* Probabilities */
+    .prob-list {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .prob-row {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .prob-meta {
+      display: flex;
+      justify-content: space-between;
+      font-size: 12px;
+      font-family: var(--font-mono);
+    }
+
+    .prob-name {
+      font-weight: 600;
+    }
+
+    .prob-track {
+      width: 100%;
+      height: 7px;
+      background: rgba(255, 255, 255, 0.06);
+      border-radius: 4px;
+      overflow: hidden;
+    }
+
+    .prob-fill {
+      height: 100%;
+      width: 0%;
+      background: var(--muted);
+      border-radius: 4px;
+      transition: width 0.1s ease;
+    }
+
+    .active-tactic .prob-name {
+      color: var(--laya-pink);
+    }
+
+    .active-tactic .prob-fill {
+      background: var(--laya-pink);
+      box-shadow: 0 0 10px var(--laya-pink);
+    }
+
+    /* Terminal Context */
+    .prompt-terminal {
+      background: #040508;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 10px;
+      padding: 12px;
+      font-family: var(--font-mono);
+      font-size: 11px;
+      color: #94a3b8;
+      line-height: 1.5;
+      max-height: 100px;
+      overflow-y: auto;
+    }
+  </style>
+</head>
+<body>
+
+  <header>
+    <div class="brand">
+      <div class="brand-logo">L</div>
+      <div class="brand-text">
+        <h1>Laya Cyberpunk Pong</h1>
+        <span>Human vs ModernBERT Decision Model • Live 60 FPS RTX Duel</span>
+      </div>
+    </div>
+    <div class="header-badges">
+      <div class="badge badge-rtx">
+        <div class="badge-dot"></div>
+        RTX 4050 ACCELERATED (7ms)
+      </div>
+    </div>
+  </header>
+
+  <main>
+    <!-- Left: Pong Court -->
+    <div class="arena-card">
+      <div class="scoreboard">
+        <div class="score-side">
+          <span class="score-name score-player">YOU (Player)</span>
+          <span id="p1Score" class="score-num score-player">0</span>
+        </div>
+
+        <div class="rally-badge">
+          RALLY: <b id="rallyCount">0</b><br>
+          <span style="font-size: 10px; color: var(--muted)">RECORD: <span id="maxRally">0</span></span>
+        </div>
+
+        <div class="score-side">
+          <span class="score-name score-ai">LAYA AI</span>
+          <span id="aiScore" class="score-num score-ai">0</span>
+        </div>
+      </div>
+
+      <div class="canvas-wrapper">
+        <canvas id="pongCanvas" width="850" height="520"></canvas>
+      </div>
+
+      <div class="arena-controls">
+        <div class="control-hint">
+          🎮 Controls: Move <b>Mouse</b> vertically over court, or use <kbd>W</kbd> / <kbd>S</kbd> keys.
+        </div>
+        <div class="btn-group">
+          <button id="btnSound">🔊 Sound: ON</button>
+          <button id="btnReset">Reset Match</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Right: Laya Brain Telemetry -->
+    <div class="ai-card">
+      
+      <!-- Live Strategy Panel -->
+      <div class="panel">
+        <h2>
+          Laya Mind & Tactics
+          <span id="tacticBadge" class="tactic-tag">FLAT_CENTER</span>
+        </h2>
+
+        <div class="stats-grid">
+          <div class="stat-box">
+            <label>RTX GPU Latency</label>
+            <div>
+              <span id="valLatency" class="val" style="color: var(--accent-green)">7.1</span>
+              <span class="unit">ms</span>
+            </div>
+          </div>
+          <div class="stat-box">
+            <label>Decision Throughput</label>
+            <div>
+              <span id="valFps" class="val" style="color: var(--player-cyan)">140</span>
+              <span class="unit">FPS</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="thought-bubble">
+          <div class="thought-icon">💡</div>
+          <div id="aiComment">Tracking ball trajectory and reading player paddle position...</div>
+        </div>
+
+        <!-- Probabilities -->
+        <div class="prob-list">
+          <div class="prob-row" id="row_SMASH_HIGH">
+            <div class="prob-meta">
+              <span class="prob-name">▲ SMASH_HIGH (Top Corner)</span>
+              <span class="prob-pct">0%</span>
+            </div>
+            <div class="prob-track"><div class="prob-fill"></div></div>
+          </div>
+
+          <div class="prob-row" id="row_SMASH_LOW">
+            <div class="prob-meta">
+              <span class="prob-name">▼ SMASH_LOW (Bottom Corner)</span>
+              <span class="prob-pct">0%</span>
+            </div>
+            <div class="prob-track"><div class="prob-fill"></div></div>
+          </div>
+
+          <div class="prob-row" id="row_SPIN_CUT">
+            <div class="prob-meta">
+              <span class="prob-name">◆ SPIN_CUT (Deceptive Slice)</span>
+              <span class="prob-pct">0%</span>
+            </div>
+            <div class="prob-track"><div class="prob-fill"></div></div>
+          </div>
+
+          <div class="prob-row" id="row_FLAT_CENTER">
+            <div class="prob-meta">
+              <span class="prob-name">━ FLAT_CENTER (Fast Drive)</span>
+              <span class="prob-pct">0%</span>
+            </div>
+            <div class="prob-track"><div class="prob-fill"></div></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ModernBERT Context Inspector -->
+      <div class="panel">
+        <h2>ModernBERT Natural Language Prompt</h2>
+        <div class="prompt-terminal" id="promptView">Connecting to Laya WebSocket...</div>
+      </div>
+
+    </div>
+  </main>
+
+  <script>
+    // --- Audio Synthesis (Web Audio API) ---
+    let audioCtx = null;
+    let soundEnabled = true;
+
+    function initAudio() {
+      if (!audioCtx) {
+        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      }
+    }
+
+    function playTone(freq, type, duration, gainVal = 0.1) {
+      if (!soundEnabled) return;
+      initAudio();
+      try {
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.type = type;
+        osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+        gain.gain.setValueAtTime(gainVal, audioCtx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + duration);
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        osc.start();
+        osc.stop(audioCtx.currentTime + duration);
+      } catch (e) {}
+    }
+
+    function soundHit(isPlayer) {
+      playTone(isPlayer ? 440 : 587, "sine", 0.08, 0.12);
+    }
+    function soundWall() {
+      playTone(220, "triangle", 0.05, 0.08);
+    }
+    function soundScore(isPlayer) {
+      if (isPlayer) {
+        playTone(523.25, "sine", 0.12, 0.2);
+        setTimeout(() => playTone(659.25, "sine", 0.25, 0.2), 100);
+      } else {
+        playTone(311.13, "sawtooth", 0.2, 0.15);
+      }
+    }
+
+    // --- DOM Elements ---
+    const canvas = document.getElementById("pongCanvas");
+    const ctx = canvas.getContext("2d");
+    const p1ScoreElem = document.getElementById("p1Score");
+    const aiScoreElem = document.getElementById("aiScore");
+    const rallyElem = document.getElementById("rallyCount");
+    const maxRallyElem = document.getElementById("maxRally");
+    const tacticBadge = document.getElementById("tacticBadge");
+    const valLatency = document.getElementById("valLatency");
+    const valFps = document.getElementById("valFps");
+    const aiComment = document.getElementById("aiComment");
+    const promptView = document.getElementById("promptView");
+    const btnSound = document.getElementById("btnSound");
+    const btnReset = document.getElementById("btnReset");
+
+    btnSound.addEventListener("click", () => {
+      soundEnabled = !soundEnabled;
+      btnSound.innerText = soundEnabled ? "🔊 Sound: ON" : "🔇 Sound: OFF";
+      if (soundEnabled) initAudio();
+    });
+
+    btnReset.addEventListener("click", () => {
+      if (ws.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify({ type: "reset" }));
+      }
+    });
+
+    // --- Particle System ---
+    const particles = [];
+    function spawnParticles(x, y, color, count = 12) {
+      for (let i = 0; i < count; i++) {
+        const angle = Math.random() * Math.PI * 2;
+        const speed = Math.random() * 4 + 1;
+        particles.push({
+          x, y,
+          vx: Math.cos(angle) * speed,
+          vy: Math.sin(angle) * speed,
+          color,
+          alpha: 1.0,
+          decay: Math.random() * 0.04 + 0.02,
+          radius: Math.random() * 3 + 1.5,
+        });
+      }
+    }
+
+    function updateParticles() {
+      for (let i = particles.length - 1; i >= 0; i--) {
+        const p = particles[i];
+        p.x += p.vx;
+        p.y += p.vy;
+        p.alpha -= p.decay;
+        if (p.alpha <= 0) {
+          particles.splice(i, 1);
+        } else {
+          ctx.save();
+          ctx.globalAlpha = p.alpha;
+          ctx.fillStyle = p.color;
+          ctx.beginPath();
+          ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.restore();
+        }
+      }
+    }
+
+    // --- Trail Effect ---
+    const trail = [];
+    const maxTrail = 10;
+
+    // --- WebSocket Connection ---
+    const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
+    const ws = new WebSocket(`${protocol}//${window.location.host}/ws`);
+
+    let lastRally = 0;
+    let lastP1Score = 0;
+    let lastAiScore = 0;
+
+    ws.onopen = () => {
+      console.log("WebSocket connected to Pong server.");
+      promptView.innerText = "Laya ModernBERT tactical engine connected and active.";
+    };
+
+    ws.onmessage = (event) => {
+      const data = JSON.parse(event.data);
+      if (data.type === "state") {
+        handleState(data);
+      }
+    };
+
+    // --- Input Handling ---
+    let playerTargetY = canvas.height / 2;
+
+    canvas.addEventListener("mousemove", (e) => {
+      const rect = canvas.getBoundingClientRect();
+      const scaleY = canvas.height / rect.height;
+      playerTargetY = (e.clientY - rect.top) * scaleY;
+      sendMove(playerTargetY);
+    });
+
+    window.addEventListener("keydown", (e) => {
+      if (e.key === "w" || e.key === "W" || e.key === "ArrowUp") {
+        playerTargetY = Math.max(40, playerTargetY - 35);
+        sendMove(playerTargetY);
+      } else if (e.key === "s" || e.key === "S" || e.key === "ArrowDown") {
+        playerTargetY = Math.min(canvas.height - 40, playerTargetY + 35);
+        sendMove(playerTargetY);
+      }
+    });
+
+    function sendMove(y) {
+      if (ws.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify({ type: "move", y: y }));
+      }
+    }
+
+    // --- State Handler & Render ---
+    function handleState(data) {
+      const { ball, p1, ai, probabilities, latency_ms, fps, rally, max_rally, score_event, prompt } = data;
+
+      // Update Scores & Sounds
+      p1ScoreElem.innerText = p1.score;
+      aiScoreElem.innerText = ai.score;
+      rallyElem.innerText = rally;
+      maxRallyElem.innerText = max_rally;
+
+      if (rally > lastRally) {
+        // Paddle bounce!
+        const isPlayer = ball.x < canvas.width / 2;
+        soundHit(isPlayer);
+        spawnParticles(ball.x, ball.y, isPlayer ? "#00f2fe" : "#ff007f", 16);
+      } else if (score_event) {
+        soundScore(score_event === "player");
+        spawnParticles(ball.x, ball.y, score_event === "player" ? "#00ff88" : "#ff007f", 30);
+      }
+      lastRally = rally;
+
+      // Update Telemetry
+      valLatency.innerText = latency_ms.toFixed(1);
+      valFps.innerText = Math.round(fps);
+      tacticBadge.innerText = ai.tactic;
+      aiComment.innerText = ai.comment;
+      promptView.innerText = prompt;
+
+      // Update Probabilities
+      const tactics = ["SMASH_HIGH", "SMASH_LOW", "SPIN_CUT", "FLAT_CENTER"];
+      tactics.forEach((t) => {
+        const row = document.getElementById(`row_${t}`);
+        const p = probabilities[t] || 0;
+        const pct = Math.round(p * 100);
+        row.querySelector(".prob-pct").innerText = `${pct}%`;
+        row.querySelector(".prob-fill").style.width = `${pct}%`;
+
+        if (t === ai.tactic) {
+          row.classList.add("active-tactic");
+        } else {
+          row.classList.remove("active-tactic");
+        }
+      });
+
+      // Render Court
+      renderCourt(ball, p1.y, ai.y);
+    }
+
+    function renderCourt(ball, p1Y, aiY) {
+      // Clear
+      ctx.fillStyle = "#07090f";
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+      // Center dashed line
+      ctx.strokeStyle = "rgba(255, 255, 255, 0.08)";
+      ctx.lineWidth = 3;
+      ctx.setLineDash([12, 12]);
+      ctx.beginPath();
+      ctx.moveTo(canvas.width / 2, 0);
+      ctx.lineTo(canvas.width / 2, canvas.height);
+      ctx.stroke();
+      ctx.setLineDash([]);
+
+      // Ball Trail
+      trail.push({ x: ball.x, y: ball.y });
+      if (trail.length > maxTrail) trail.shift();
+
+      for (let i = 0; i < trail.length; i++) {
+        const pt = trail[i];
+        const alpha = (i / trail.length) * 0.4;
+        ctx.fillStyle = `rgba(255, 255, 255, ${alpha})`;
+        ctx.beginPath();
+        ctx.arc(pt.x, pt.y, 6 * (i / trail.length), 0, Math.PI * 2);
+        ctx.fill();
+      }
+
+      // Draw Ball (Glowing neon orb)
+      ctx.save();
+      ctx.shadowColor = "#ffffff";
+      ctx.shadowBlur = 15;
+      ctx.fillStyle = "#ffffff";
+      ctx.beginPath();
+      ctx.arc(ball.x, ball.y, 8, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+
+      // Draw Player Paddle (Neon Cyan)
+      const p1X = 30;
+      const padW = 14;
+      const padH = 85;
+
+      ctx.save();
+      ctx.shadowColor = "#00f2fe";
+      ctx.shadowBlur = 18;
+      ctx.fillStyle = "#00f2fe";
+      ctx.beginPath();
+      ctx.roundRect(p1X, p1Y, padW, padH, 6);
+      ctx.fill();
+      ctx.restore();
+
+      // Draw Laya AI Paddle (Neon Magenta)
+      const aiX = canvas.width - 30 - padW;
+      ctx.save();
+      ctx.shadowColor = "#ff007f";
+      ctx.shadowBlur = 18;
+      ctx.fillStyle = "#ff007f";
+      ctx.beginPath();
+      ctx.roundRect(aiX, aiY, padW, padH, 6);
+      ctx.fill();
+      ctx.restore();
+
+      // Particles
+      updateParticles();
+    }
+  </script>
+</body>
+</html>

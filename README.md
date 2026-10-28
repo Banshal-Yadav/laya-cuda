@@ -24,6 +24,10 @@ Generative LLMs are slow, non-deterministic, and costly for millisecond control 
 | **DeBERTa-v3-large** | 435M | RTX 4050 (FP16) | **47.80 ms** | **~21 decisions/s** | ~1.67 GB | Financial wire auth, AML, fraud |
 | *Generative 8B LLM* | 8B | RTX 4050 (4-bit) | *~850 ms* | *~1.2 requests/s* | ~5.5 GB | Unstructured chat generation |
 
+- **Laya (ModernBERT-149M)** is the primary engine for high-frequency control loops (<10 ms). Used across all game demos (`web_snake/`, `web_pong/`, `snake_game.py`).
+- **Laya Multilingual & Typed-Decisions** (`laya-multilingual`, `laya-typed-decisions`) provide 100+ language support and fine-tuned enterprise ticket routing.
+- **DeBERTa-v3-Large (435M)** is the secondary gatekeeper for high-stakes risk evaluation where deeper semantic reasoning outweighs raw FPS (~48 ms).
+
 ---
 
 ## Quick Start

@@ -156,7 +156,7 @@ def run_snake(visual: bool = False, max_steps: int = 200, target_fps: int = 60):
 
         # Time the decision
         t0 = time.perf_counter()
-        action = engine.decide(state_prompt)
+        action, confidence = engine.decide(state_prompt)
         torch.cuda.synchronize()
         dt_ms = (time.perf_counter() - t0) * 1000
         latencies.append(dt_ms)

@@ -89,6 +89,19 @@ class SnakeGame:
 
         return self.alive
 
+    def get_safe_actions(self) -> List[str]:
+        """Returns non-colliding valid direction moves."""
+        hx, hy = self.snake[0]
+        safe = []
+        for name, (dx, dy) in self.DIRECTIONS.items():
+            nx, ny = hx + dx, hy + dy
+            is_wall = nx < 0 or nx >= self.width or ny < 0 or ny >= self.height
+            is_body = (nx, ny) in self.snake[:-1]
+            is_opp = (name == self.OPPOSITES.get(self.direction))
+            if not (is_wall or is_body or is_opp):
+                safe.append(name)
+        return safe
+
     def get_state_prompt(self) -> str:
         """Compact natural language representation of current board for Laya."""
         hx, hy = self.snake[0]
@@ -156,12 +169,24 @@ def run_snake(visual: bool = False, max_steps: int = 200, target_fps: int = 60):
 
         # Time the decision
         t0 = time.perf_counter()
-        action, confidence = engine.decide(state_prompt)
+        action, confidence, probs = engine.decide_with_probs(state_prompt)
         torch.cuda.synchronize()
         dt_ms = (time.perf_counter() - t0) * 1000
         latencies.append(dt_ms)
 
         current_fps = 1000 / dt_ms if dt_ms > 0 else 0
+
+        # Cycle safety layer: filter collisions and weight by Laya probability
+        safe_moves = game.get_safe_actions()
+        if safe_moves:
+            hx, hy = game.snake[0]
+            fx, fy = game.food
+            curr_dist = abs(hx - fx) + abs(hy - fy)
+            def score_move(m):
+                dx, dy = game.DIRECTIONS[m]
+                new_dist = abs(hx + dx - fx) + abs(hy + dy - fy)
+                return probs.get(m, 0.0) * 3.0 + (3.0 if new_dist < curr_dist else -1.0)
+            action = max(safe_moves, key=score_move)
 
         # Step the environment
         alive = game.step(action)
